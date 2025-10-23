@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System Monitor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .dashboard {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            color: #444;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .processes {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .processes h2 {
+            font-size: 20px;
+            color: #333;
+        }
+        .processes p {
+            font-size: 16px;
+            color: #555;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>System Monitor Dashboard</h1>
+        <canvas id="cpuChart" width="300" height="100"></canvas>
+        <div class="stat">CPU Usage: {{ cpu_usage }}%</div>
+        <div class="stat">Memory: {{ mem_used|round(1) }}MB / {{ mem_total|round(1) }}MB ({{ mem_free|round(1) }}MB free)</div>
+        <div class="stat">CPU Temp: {{ cpu_temp }}°C</div>
+        <div class="processes">
+            <h2>Top Processes</h2>
+            {% for name, mem_percent in top_processes %}
+                <p>{{ name }}: {{ mem_percent|round(2) }}%</p>
+            {% endfor %}
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('cpuChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['CPU Usage'],
+                datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: [{{ cpu_usage }}],
+                    backgroundColor: 'rgba(0, 255, 128, 0.5)',
+                    borderColor: 'rgba(0, 255, 128, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: { y: { beginAtZero: true, max: 100 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+</body>
+</html>
