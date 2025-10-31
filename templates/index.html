@@ -2,86 +2,216 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Monitor Dashboard</title>
+
+    <!-- Load Chart.js from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #e4e9fd);
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            color: #333;
         }
+
         .dashboard {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            width: 420px;
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            animation: fadeIn 0.8s ease-out;
         }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         h1 {
-            color: #333;
-            font-size: 24px;
+            font-size: 26px;
             margin-bottom: 20px;
+            color: #222;
+            font-weight: 600;
         }
+
+        .charts {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
         .stat {
-            color: #444;
             font-size: 18px;
-            margin: 10px 0;
+            margin: 12px 0;
+            font-weight: 500;
         }
+
+        .stat span {
+            color: #00d1a0;
+            font-weight: 600;
+        }
+
         .processes {
-            margin-top: 20px;
+            margin-top: 24px;
             text-align: left;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 12px;
+            border-radius: 10px;
         }
+
         .processes h2 {
-            font-size: 20px;
-            color: #333;
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            color: #222;
         }
+
         .processes p {
-            font-size: 16px;
-            color: #555;
-            margin: 5px 0;
+            margin: 6px 0;
+            font-size: 15px;
+            color: #444;
+        }
+
+        .alert {
+            background: #ff3b30;
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
         }
     </style>
 </head>
 <body>
     <div class="dashboard">
-        <h1>System Monitor Dashboard</h1>
-        <canvas id="cpuChart" width="300" height="100"></canvas>
-        <div class="stat">CPU Usage: {{ cpu_usage }}%</div>
-        <div class="stat">Memory: {{ mem_used|round(1) }}MB / {{ mem_total|round(1) }}MB ({{ mem_free|round(1) }}MB free)</div>
-        <div class="stat">CPU Temp: {{ cpu_temp }}°C</div>
+        <h1>System Monitor</h1>
+
+        <!-- Charts -->
+        <div class="charts">
+            <canvas id="cpuChart" width="130" height="130"></canvas>
+            <canvas id="tempGauge" width="130" height="130"></canvas>
+            <canvas id="memGauge" width="130" height="130"></canvas>
+        </div>
+
+        <!-- Stats -->
+        <div class="stat">CPU: <span id="cpuValue">{{ cpu_usage }}</span>%</div>
+        <div class="stat">RAM: <span id="memUsed">{{ mem_used|round(1) }}</span> / <span id="memTotal">{{ mem_total|round(1) }}</span> MB</div>
+        <div class="stat">Temp: <span id="tempValue">{{ cpu_temp }}</span>°C</div>
+
+        <!-- Alert -->
+        <div id="alert" class="alert">High CPU Usage! (>80%)</div>
+
+        <!-- Top Processes -->
         <div class="processes">
             <h2>Top Processes</h2>
-            {% for name, mem_percent in top_processes %}
-                <p>{{ name }}: {{ mem_percent|round(2) }}%</p>
-            {% endfor %}
+            <div id="processList">
+                {% for name, mem_percent in top_processes %}
+                    <p>{{ name }}: {{ mem_percent|round(2) }}%</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
+
     <script>
-        const ctx = document.getElementById('cpuChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
+        // Initialize Charts
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const cpuChart = new Chart(cpuCtx, {
+            type: 'doughnut',
             data: {
-                labels: ['CPU Usage'],
                 datasets: [{
-                    label: 'CPU Usage (%)',
-                    data: [{{ cpu_usage }}],
-                    backgroundColor: 'rgba(0, 255, 128, 0.5)',
-                    borderColor: 'rgba(0, 255, 128, 1)',
-                    borderWidth: 1
+                    data: [{{ cpu_usage }}, 100 - {{ cpu_usage }}],
+                    backgroundColor: ['#00d1a0', '#e0e0e0'],
+                    borderWidth: 0,
+                    circumference: 180,
+                    rotation: -90
                 }]
             },
-            options: {
-                scales: { y: { beginAtZero: true, max: 100 } },
-                plugins: { legend: { display: false } }
-            }
+            options: { cutout: '80%', plugins: { legend: false, tooltip: false } }
         });
-    </script>
-</body>
-</html>
+
+        const tempCtx = document.getElementById('tempGauge').getContext('2d');
+        const tempGauge = new Chart(tempCtx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [{{ cpu_temp }}, 100 - {{ cpu_temp }}],
+                    backgroundColor: ['#ff9500', '#e0e0e0'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '80%', circumference: 180, rotation: -90, plugins: { legend: false, tooltip: false } }
+        });
+
+        const memCtx = document.getElementById('memGauge').getContext('2d');
+        const memPercent = {{ (mem_used / mem_total * 100)|round(1) }};
+        const memGauge = new Chart(memCtx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [memPercent, 100 - memPercent],
+                    backgroundColor: ['#007aff', '#e0e0e0'],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '80%', circumference: 180, rotation: -90, plugins: { legend: false, tooltip: false } }
+        });
+
+        // Real-Time Update
+        function updateDashboard() {
+            fetch('/stats')
+                .then(r => r.json())
+                .then(data => {
+                    // Update Charts
+                    cpuChart.data.datasets[0].data = [data.cpu_usage, 100 - data.cpu_usage];
+                    cpuChart.update('quiet');
+
+                    tempGauge.data.datasets[0].data = [data.cpu_temp, 100 - data.cpu_temp];
+                    tempGauge.update('quiet');
+
+                    const newMemPercent = (data.mem_used / data.mem_total * 100).toFixed(1);
+                    memGauge.data.datasets[0].data = [newMemPercent, 100 - newMemPercent];
+                    memGauge.update('quiet');
+
+                    // Update Text
+                    document.getElementById('cpuValue').textContent = data.cpu_usage;
+                    document.getElementById('memUsed').textContent = data.mem_used.toFixed(1);
+                    document.getElementById('memTotal').textContent = data.mem_total.toFixed(1);
+                    document.getElementById('tempValue').textContent = data.cpu_temp;
+
+                    // Update Processes
+                    const list = document.getElementById('processList');
+                    list.innerHTML = '';
+                    data.top_processes.forEach(p => {
+                        const el = document.createElement('p');
+                        el.textContent = `${p[0]}: ${p[1].toFixed(2)}%`;
+                        list.appendChild(el);
+                    });
+
+                    // CPU Alert
+                    const alert = document.getElementById('alert');
+                    if (data.cpu_usage > 80) {
+                        alert.style.display = 'block';
+                    } else {
+                        alert.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error('Update
